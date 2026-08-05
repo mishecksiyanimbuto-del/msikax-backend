@@ -1,0 +1,76 @@
+// ============================================================================
+// APP ENTRY POINT — wires up the database, middleware, and every route
+// group. This file should stay thin: connecting things, not deciding
+// things (that's what controllers/services are for).
+// ============================================================================
+require('dotenv').config();
+const express = require('express');
+const cors = require('cors');
+const path = require('path');
+
+const connectDB = require('./config/db');
+const logger = require('./middleware/logger');
+const { notFound, errorHandler } = require('./middleware/errorHandler');
+const { generalLimiter } = require('./middleware/rateLimit');
+
+const authRoutes = require('./routes/authRoutes');
+const shopRoutes = require('./routes/shopRoutes');
+const productRoutes = require('./routes/productRoutes');
+const cartRoutes = require('./routes/cartRoutes');
+const checkoutRoutes = require('./routes/checkoutRoutes');
+const subscriptionRoutes = require('./routes/subscriptionRoutes');
+const orderRoutes = require('./routes/orderRoutes');
+const suggestionRoutes = require('./routes/suggestionRoutes');
+const chatRoutes = require('./routes/chatRoutes');
+const walletRoutes = require('./routes/walletRoutes');
+const refundRoutes = require('./routes/refundRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
+const reviewRoutes = require('./routes/reviewRoutes');
+const wishlistRoutes = require('./routes/wishlistRoutes');
+const followRoutes = require('./routes/followRoutes');
+const webhookRoutes = require('./routes/webhookRoutes');
+const adminRoutes = require('./routes/adminRoutes');
+
+const app = express();
+
+app.use(cors({
+  origin: ['http://127.0.0.1:5500', 'http://localhost:5500', process.env.FRONTEND_ORIGIN].filter(Boolean),
+  credentials: true
+}));
+app.use(logger);
+
+// Webhook needs the raw body for PayChangu's signature check, so it's
+// mounted with its own parser BEFORE the global express.json() below.
+app.use('/api/webhooks', express.raw({ type: '*/*' }), webhookRoutes);
+
+app.use(express.json({ limit: '2mb' }));
+app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
+app.use('/api', generalLimiter);
+
+app.use('/api/auth', authRoutes);
+app.use('/api/shops', shopRoutes);
+app.use('/api/products', productRoutes);
+app.use('/api/cart', cartRoutes);
+app.use('/api/checkout', checkoutRoutes);
+app.use('/api/subscriptions', subscriptionRoutes);
+app.use('/api/orders', orderRoutes);
+app.use('/api/suggestions', suggestionRoutes);
+app.use('/api/chats', chatRoutes);
+app.use('/api/wallet', walletRoutes);
+app.use('/api/refunds', refundRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/reviews', reviewRoutes);
+app.use('/api/wishlist', wishlistRoutes);
+app.use('/api/follow', followRoutes);
+app.use('/api/admin', adminRoutes);
+
+app.get('/health', (_req, res) => res.json({ ok: true }));
+
+app.use(notFound);
+app.use(errorHandler);
+
+const PORT = process.env.PORT || 4000;
+
+connectDB().then(() => {
+  app.listen(PORT, () => console.log(`MsikaX backend listening on http://localhost:${PORT}`));
+});
