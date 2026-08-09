@@ -1,0 +1,20 @@
+// db.js
+const { Pool } = require('pg');
+
+// Uses the DATABASE_URL environment variable from Railway / .env
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false // Required for Aiven SSL connections
+  }
+});
+
+pool.connect((err, client, release) => {
+  if (err) {
+    return console.error('Error connecting to Aiven PostgreSQL:', err.stack);
+  }
+  console.log('Successfully connected to Aiven PostgreSQL!');
+  release();
+});
+
+module.exports = pool;
