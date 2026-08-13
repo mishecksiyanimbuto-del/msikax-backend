@@ -9,6 +9,7 @@ const asyncHandler = require('../utils/asyncHandler');
 const ApiError = require('../utils/apiError');
 const { getListingStatus } = require('../services/listingQuotaService');
 const { escapeRegex } = require('../utils/text');
+const { resolvePublicFileUrl } = require('../middleware/upload');
 const { notify } = require('../services/notificationService');
 
 const listProducts = asyncHandler(async (req, res) => {
@@ -16,7 +17,7 @@ const listProducts = asyncHandler(async (req, res) => {
 
   // Shop-level filters (district, rating, verified, suspended) narrow down
   // which shops' products are even eligible before touching Product at all.
-  const shopFilter = { suspended: false };
+  const shopFilter = { suspended: false, deleted: false };
   if (district) shopFilter.district = new RegExp('^' + escapeRegex(district) + '$', 'i');
   if (minRating) shopFilter.rating = { $gte: Number(minRating) };
   if (verifiedOnly === 'true') shopFilter.verified = true;
@@ -37,7 +38,7 @@ const listProducts = asyncHandler(async (req, res) => {
 });
 
 const createProduct = asyncHandler(async (req, res) => {
-  const shop = await Shop.findOne({ owner: req.user._id });
+  const shop = await Shop.findOne({ owner: req.user._id, deleted: false });
   if (!shop) throw new ApiError(400, 'Open a shop before listing items.');
 
   const status = await getListingStatus(shop);
@@ -47,7 +48,7 @@ const createProduct = asyncHandler(async (req, res) => {
   const numPrice = Number(price);
   if (!name || !numPrice || numPrice <= 0) throw new ApiError(400, 'Add a name and a valid price.');
 
-  const images = (req.files || []).map(f => `/uploads/products/${f.filename}`);
+  const images = (req.files || []).map(f => resolvePublicFileUrl(f, 'products'));
   const product = await Product.create({
     seller: shop._id, title: name, price: numPrice, description: description || undefined,
     category: category || 'Other', emoji: emoji || '🛍️', images, stock: Math.max(0, parseInt(stock, 10) || 0)
@@ -62,7 +63,7 @@ const createProduct = asyncHandler(async (req, res) => {
 });
 
 const deleteProduct = asyncHandler(async (req, res) => {
-  const shop = await Shop.findOne({ owner: req.user._id });
+  const shop = await Shop.findOne({ owner: req.user._id, deleted: false });
   const product = await Product.findById(req.params.id);
   if (!product) throw new ApiError(404, 'Listing not found.');
   if (!shop || product.seller.toString() !== shop._id.toString()) throw new ApiError(403, "You can only remove your own shop's listings.");

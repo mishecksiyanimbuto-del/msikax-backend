@@ -12,14 +12,21 @@
 // ============================================================================
 const path = require('path');
 const Shop = require('../models/Shop');
-const { PRIVATE_UPLOADS_ROOT } = require('../middleware/upload');
+const { PRIVATE_UPLOADS_ROOT, usingCloudinary } = require('../middleware/upload');
+const { signedPrivateUrl } = require('../utils/privateFileUrl');
 const { notify } = require('../services/notificationService');
 const asyncHandler = require('../utils/asyncHandler');
 const ApiError = require('../utils/apiError');
 
+/** Cloudinary: redirect to a signed, short-lived URL. Local disk fallback: stream the file directly. */
+function serveDocument(res, filename) {
+  if (usingCloudinary) return res.redirect(signedPrivateUrl(filename));
+  return res.sendFile(path.join(PRIVATE_UPLOADS_ROOT, filename));
+}
+
 // ------------------------------------------------------------- seller side --
 const submitVerification = asyncHandler(async (req, res) => {
-  const shop = await Shop.findOne({ owner: req.user._id });
+  const shop = await Shop.findOne({ owner: req.user._id, deleted: false });
   if (!shop) throw new ApiError(400, 'Open a shop first.');
   if (shop.verification.status === 'verified') throw new ApiError(409, 'This shop is already verified.');
   if (!req.files?.idDocument?.[0]) throw new ApiError(400, 'A photo of your National ID is required.');
@@ -37,10 +44,10 @@ const submitVerification = asyncHandler(async (req, res) => {
 
 /** The seller viewing their own submitted document back (e.g. to confirm what was sent). */
 const getMyDocument = asyncHandler(async (req, res) => {
-  const shop = await Shop.findOne({ owner: req.user._id });
+  const shop = await Shop.findOne({ owner: req.user._id, deleted: false });
   const filename = req.params.type === 'business' ? shop?.verification?.businessDocument : shop?.verification?.idDocument;
   if (!shop || !filename) throw new ApiError(404, 'No document on file.');
-  res.sendFile(path.join(PRIVATE_UPLOADS_ROOT, filename));
+  serveDocument(res, filename);
 });
 
 // -------------------------------------------------------------- admin side --
@@ -55,7 +62,7 @@ const getDocumentForAdmin = asyncHandler(async (req, res) => {
   const shop = await Shop.findById(req.params.shopId);
   const filename = req.params.type === 'business' ? shop?.verification?.businessDocument : shop?.verification?.idDocument;
   if (!shop || !filename) throw new ApiError(404, 'No document on file.');
-  res.sendFile(path.join(PRIVATE_UPLOADS_ROOT, filename));
+  serveDocument(res, filename);
 });
 
 const approveVerification = asyncHandler(async (req, res) => {
