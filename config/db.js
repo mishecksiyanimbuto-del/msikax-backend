@@ -1,22 +1,21 @@
 // ============================================================================
-// DATABASE CONNECTION — Aiven PostgreSQL via pg.
+// DATABASE CONNECTION — MongoDB via Mongoose
 // ============================================================================
-const { Pool } = require('pg');
+const mongoose = require('mongoose');
 
-// Supports DATABASE_URL or DATABASE_URI from Railway / .env
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || process.env.DATABASE_URI,
-  ssl: {
-    rejectUnauthorized: false // Required for Aiven SSL connections
+async function connectDB() {
+  const uri = process.env.DATABASE_URI || process.env.MONGODB_URI;
+  if (!uri) {
+    console.error('[db] DATABASE_URI is not set in environment variables.');
+    process.exit(1);
   }
-});
-
-pool.connect((err, client, release) => {
-  if (err) {
-    return console.error('[db] Error connecting to Aiven PostgreSQL:', err.stack);
+  try {
+    await mongoose.connect(uri, { serverSelectionTimeoutMS: 10000 });
+    console.log('[db] Connected to MongoDB');
+  } catch (err) {
+    console.error('[db] Connection failed:', err.message);
+    process.exit(1);
   }
-  console.log('[db] Successfully connected to Aiven PostgreSQL!');
-  release();
-});
+}
 
-module.exports = pool;
+module.exports = connectDB;
