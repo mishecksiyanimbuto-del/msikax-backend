@@ -1,14 +1,11 @@
 // ============================================================================
-// APP ENTRY POINT — wires up the database, middleware, and every route
-// group. This file should stay thin: connecting things, not deciding
-// things (that's what controllers/services are for).
+// APP ENTRY POINT — wires up the middleware and every route group.
 // ============================================================================
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
 
-const connectDB = require('./config/db');
 const logger = require('./middleware/logger');
 const { notFound, errorHandler } = require('./middleware/errorHandler');
 const { generalLimiter } = require('./middleware/rateLimit');
@@ -44,10 +41,8 @@ const allowedOrigins = [
 // Dynamic CORS configuration allowing exact matches and any Vercel preview deployment
 app.use(cors({
   origin: function (origin, callback) {
-    // Allow non-browser requests (e.g. server-to-server, Postman, curl)
     if (!origin) return callback(null, true);
 
-    // Allow if origin is explicitly whitelisted OR ends with .vercel.app
     if (allowedOrigins.includes(origin) || /\.vercel\.app$/.test(origin)) {
       return callback(null, true);
     } else {
@@ -59,8 +54,7 @@ app.use(cors({
 
 app.use(logger);
 
-// Webhook needs the raw body for PayChangu's signature check, so it's
-// mounted with its own parser BEFORE the global express.json() below.
+// Webhook needs the raw body for PayChangu's signature check
 app.use('/api/webhooks', express.raw({ type: '*/*' }), webhookRoutes);
 
 app.use(express.json({ limit: '2mb' }));
@@ -91,6 +85,5 @@ app.use(errorHandler);
 
 const PORT = process.env.PORT || 4000;
 
-connectDB().then(() => {
-  app.listen(PORT, () => console.log(`MsikaX backend listening on http://localhost:${PORT}`));
-});
+// Start Express server directly without MongoDB dependency
+app.listen(PORT, () => console.log(`MsikaX backend listening on port ${PORT}`));
