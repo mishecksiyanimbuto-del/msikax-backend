@@ -1,10 +1,13 @@
 // ============================================================================
-// APP ENTRY POINT — wires up the middleware and every route group.
+// APP ENTRY POINT — wires up the database, middleware, and route groups.
 // ============================================================================
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+
+// Initialize Aiven PostgreSQL connection pool
+require('./config/db');
 
 const logger = require('./middleware/logger');
 const { notFound, errorHandler } = require('./middleware/errorHandler');
@@ -38,7 +41,7 @@ const allowedOrigins = [
   process.env.FRONTEND_ORIGIN
 ].filter(Boolean);
 
-// Dynamic CORS configuration allowing exact matches and any Vercel preview deployment
+// Dynamic CORS configuration
 app.use(cors({
   origin: function (origin, callback) {
     if (!origin) return callback(null, true);
@@ -85,5 +88,4 @@ app.use(errorHandler);
 
 const PORT = process.env.PORT || 4000;
 
-// Start Express server directly without MongoDB dependency
 app.listen(PORT, () => console.log(`MsikaX backend listening on port ${PORT}`));
