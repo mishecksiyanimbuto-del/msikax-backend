@@ -33,15 +33,30 @@ const adminRoutes = require('./routes/adminRoutes');
 
 const app = express();
 
+// Whitelist of allowed exact origins
+const allowedOrigins = [
+  'http://127.0.0.1:5500',
+  'http://localhost:5500',
+  'https://msikax-frontend.vercel.app',
+  process.env.FRONTEND_ORIGIN
+].filter(Boolean);
+
+// Dynamic CORS configuration allowing exact matches and any Vercel preview deployment
 app.use(cors({
-  origin: [
-    'http://127.0.0.1:5500',
-    'http://localhost:5500',
-    'https://msikax-frontend.vercel.app',
-    process.env.FRONTEND_ORIGIN
-  ].filter(Boolean),
+  origin: function (origin, callback) {
+    // Allow non-browser requests (e.g. server-to-server, Postman, curl)
+    if (!origin) return callback(null, true);
+
+    // Allow if origin is explicitly whitelisted OR ends with .vercel.app
+    if (allowedOrigins.includes(origin) || /\.vercel\.app$/.test(origin)) {
+      return callback(null, true);
+    } else {
+      return callback(null, false);
+    }
+  },
   credentials: true
 }));
+
 app.use(logger);
 
 // Webhook needs the raw body for PayChangu's signature check, so it's
